@@ -3,6 +3,7 @@ lockfileVersion: 5.4
 specifiers:
   '@julr/unocss-preset-forms': ^0.0.2
   '@unocss/preset-wind': ^0.47.5
+  '@unocss/reset': ^0.47.5
   '@vitejs/plugin-vue': ^3.2.0
   '@vueuse/core': ^9.6.0
   '@vueuse/integrations': ^9.6.0
@@ -15,6 +16,7 @@ specifiers:
   vue-tsc: ^1.0.9
 
 dependencies:
+  '@unocss/reset': 0.47.5
   '@vueuse/core': 9.6.0_vue@3.2.45
   '@vueuse/integrations': 9.6.0_fuse.js@6.6.2+vue@3.2.45
   fuse.js: 6.6.2
@@ -305,7 +307,6 @@ packages:
 
   /@unocss/reset/0.47.5:
     resolution: {integrity: sha512-UmAeVMlcGPyrZJdQMGDX7EMVA4UieUyR9f3l6a3B/AcUNPQtcISLIlzzRqcUg2c/SkkA5sHZdXDa+l48b5+rGA==}
-    dev: true
 
   /@unocss/scope/0.47.5:
     resolution: {integrity: sha512-vSYOyps6rJGcQztE4IsNkmFWIK06+3A780v+8PAn0wRbjqBoKZ1jCYL3NZ1ykCZBYPCXHcErlA2znIfb3ECbcw==}
