@@ -6,6 +6,9 @@ import { presetForms } from '@julr/unocss-preset-forms';
 
 // https://vitejs.dev/config/
 export default defineConfig({
+  build: {
+    minimize: 'terser',
+  },
   plugins: [
     vue(),
     Unocss({

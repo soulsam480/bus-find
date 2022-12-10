@@ -1,51 +1,56 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue';
+import { computed, ref, watchEffect } from 'vue';
 import { useStorage } from '@vueuse/core';
-import { downBus, upBus } from './utils/constants';
-import { useFuse } from '@vueuse/integrations/useFuse';
+import { IRouteTable } from './db/queryBuilder';
+import { useDb } from './db';
 
-interface StoreType {
-  mode: 'up' | 'down';
-  input: string;
-}
-
-const store = useStorage<StoreType>('store', {
-  mode: 'up',
+const store = useStorage('store', {
   input: '',
 });
 
 const input = computed(() => store.value.input);
 
-const dataToSearch = computed(() => {
-  if (store.value.mode === 'up') {
-    return upBus;
-  }
+const results = ref<IRouteTable[]>([]);
+const query = ref('');
 
-  return downBus;
+const { sql } = useDb();
+
+async function search(value: string) {
+  if (value.length === 0) return;
+
+  query.value = `select * from routes where route_name like '%${value}%' limit 30`;
+
+  console.log('Query', query.value);
+
+  const data = await sql?.(query.value);
+
+  console.log('RESPONSE', data);
+
+  results.value = (data as IRouteTable[]) ?? [];
+}
+
+watchEffect(() => {
+  search(input.value);
 });
-
-const { results } = useFuse(input, dataToSearch);
 </script>
 <template>
-  <div class="min-h-screen max-w-screen">
+  <div class="min-h-screen max-w-screen p-2">
     <div class="flex flex-col w-full gap-2 mx-auto sm:max-w-lg">
-      <div class="flex items-center gap-2">
-        <h1>Search bus</h1>
+      <div class="flex items-start gap-2">
+        <div class="flex flex-col gap-2">
+          <div class="text-2xl font-semibold">Search bus</div>
+          <div class="text-sm">
+            This uses a remote static SQLite Database. It loads chunks lazily
+            and runs queries against it. It uses SQLite wasm. The queries are
+            super fast, smooth and performant for huge datasets
+          </div>
 
-        <a href="https://github.com/soulsam480/bus-find">source</a>
-      </div>
-
-      <h3>Mode</h3>
-      <div class="flex flex-col gap-2">
-        <div class="inline-flex gap-2">
-          <input type="radio" id="up" value="up" v-model="store.mode" />
-          <label for="up">up - to office</label>
+          <div class="text-sm">Look at the console to debug logs</div>
         </div>
 
-        <div class="inline-flex gap-2">
-          <input type="radio" id="down" value="down" v-model="store.mode" />
-          <label for="down">down - from office</label>
-        </div>
+        <a class="underline" href="https://github.com/soulsam480/bus-find"
+          >source</a
+        >
       </div>
 
       <input
@@ -56,12 +61,13 @@ const { results } = useFuse(input, dataToSearch);
         autofocus
         autocomplete="off"
       />
+      <small> <b>Executing query :: </b> {{ query }}</small>
 
       <div class="flex flex-col gap-2">
         <h3>Results</h3>
 
-        <div v-for="bus in results" :key="bus.item">
-          {{ bus.item }}
+        <div v-for="bus in results" :key="String(bus.id)">
+          {{ bus.route_name }}
         </div>
       </div>
     </div>
