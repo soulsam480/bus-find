@@ -1,6 +1,7 @@
 {
   "compilerOptions": {
     "target": "ESNext",
+
     "useDefineForClassFields": true,
     "module": "ESNext",
     "moduleResolution": "Node",
@@ -9,7 +10,7 @@
     "resolveJsonModule": true,
     "isolatedModules": true,
     "esModuleInterop": true,
-    "lib": ["ESNext", "DOM"],
+    "lib": ["ESNext", "DOM", "WebWorker.ImportScripts"],
     "skipLibCheck": true,
     "noEmit": true
   },
