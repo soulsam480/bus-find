@@ -1,5 +1,6 @@
 import Fuse from 'fuse.js';
 import { IStore } from './type';
+import { get, set } from 'idb-keyval';
 
 export interface IRoute {
   id: string;
@@ -54,6 +55,8 @@ class FuseWorker {
       );
 
       this.data = await resp.json();
+
+      set('__bus_find__', this.data);
     } catch (error) {
       console.log('Worker error', error);
     }
@@ -132,7 +135,11 @@ class FuseWorker {
   }
 
   async init() {
-    await this.getDb();
+    this.data = (await get('__bus_find__')) || [];
+
+    if (!this.data.length) {
+      await this.getDb();
+    } else this.getDb();
 
     this.initFuse();
 

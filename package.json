@@ -13,6 +13,7 @@
     "@vueuse/core": "^9.6.0",
     "@vueuse/integrations": "^9.6.0",
     "fuse.js": "^6.6.2",
+    "idb-keyval": "^6.2.0",
     "vue": "^3.2.41"
   },
   "devDependencies": {

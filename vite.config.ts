@@ -27,7 +27,7 @@ export default defineConfig({
         theme_color: '#CEE5A8',
         background_color: '#CEE5A8',
         icons: [
-          ...[48, 72, 98, 144, 192, 512].map((size) => {
+          ...[48, 72, 144, 192, 512].map((size) => {
             return {
               src: `icon-${size}-${size}.png`,
               sizes: `${size}x${size}`,
