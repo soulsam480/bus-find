@@ -25,6 +25,7 @@ export default defineConfig({
         short_name: 'Find Bus',
         description: 'Find Bus in Bengaluru',
         theme_color: '#CEE5A8',
+        background_color: '#CEE5A8',
         icons: [
           ...[48, 72, 98, 144, 192, 512].map((size) => {
             return {
