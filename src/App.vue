@@ -160,7 +160,7 @@ function handleSeeStops(id: string) {
             <div class="text-2xl font-semibold inline-flex items-center">
               <img src="/icon-48-48.png" alt="logo" /> Search bus
             </div>
-            <div class="text-sm">
+            <div class="text-xs">
               The search uses fuzzy search technique. It will find results
               approximately matching the search query.
             </div>
@@ -206,19 +206,10 @@ function handleSeeStops(id: string) {
         <div class="flex gap-2 items-end">
           <div class="flex flex-col gap-1">
             <label for="search">Filter By</label>
-            <select
-              v-model="store.searchBy"
-              px-8
-              bg-transparent
-              class="rounded p-2 min-w-[150px]"
-            >
-              <option bg="dark:(dark-300) light-700" value="both">Both</option>
-              <option bg="dark:(dark-300) light-700" value="route_name">
-                Bus number
-              </option>
-              <option bg="dark:(dark-300) light-700" value="route_stops">
-                Bus stops
-              </option>
+            <select v-model="store.searchBy" class="rounded p-2 min-w-[135px]">
+              <option value="both">Both</option>
+              <option value="route_name">Bus number</option>
+              <option value="route_stops">Bus stops</option>
             </select>
           </div>
 
@@ -226,22 +217,21 @@ function handleSeeStops(id: string) {
             <label for="search">Per page</label>
             <select
               v-model.number="store.limit"
-              px-8
-              bg-transparent
-              class="rounded p-2"
+              class="rounded p-2 min-w-[70px]"
+              @change="store.page = 1"
             >
-              <option bg="dark:(dark-300) light-700" value="10">10</option>
-              <option bg="dark:(dark-300) light-700" value="20">20</option>
-              <option bg="dark:(dark-300) light-700" value="30">30</option>
-              <option bg="dark:(dark-300) light-700" value="40">40</option>
-              <option bg="dark:(dark-300) light-700" value="60">60</option>
-              <option bg="dark:(dark-300) light-700" value="80">80</option>
-              <option bg="dark:(dark-300) light-700" value="100">100</option>
+              <option value="10">10</option>
+              <option value="20">20</option>
+              <option value="30">30</option>
+              <option value="40">40</option>
+              <option value="60">60</option>
+              <option value="80">80</option>
+              <option value="100">100</option>
             </select>
           </div>
 
           <div class="flex flex-col gap-1 flex-grow">
-            <label class="truncate text-sm"
+            <label class="truncate"
               >Page (total {{ response?.pages ?? 0 }})</label
             >
 
@@ -318,6 +308,16 @@ function handleSeeStops(id: string) {
             </div>
           </div>
         </template>
+      </div>
+
+      <div class="text-xs text-center py-2">
+        Released under the
+        <a class="underline" href="https://opensource.org/licenses/MIT"
+          >MIT License.</a
+        >
+        <br />
+
+        Copyright © {{ new Date().getFullYear() }} Sambit Sahoo
       </div>
     </div>
   </div>
