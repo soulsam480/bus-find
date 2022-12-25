@@ -13,8 +13,6 @@ export default defineConfig({
       presets: [presetWind(), presetForms()],
     }),
     VitePWA({
-      strategies: 'generateSW',
-      injectRegister: 'auto',
       registerType: 'autoUpdate',
       workbox: {
         globPatterns: ['**/*.{js,css,html,ico,png,svg}'],
