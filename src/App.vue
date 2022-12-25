@@ -148,6 +148,20 @@ function handleSeeStops(id: string) {
     }),
   );
 }
+
+const activeRouteStopSearchTerm = ref('');
+
+const activeRouteStops = computed(
+  () =>
+    activeRoute.value?.route_stops.slice().filter((stop) => {
+      const regex = new RegExp(
+        `${activeRouteStopSearchTerm.value.replace(/\\|\//g, '')}`,
+        'i',
+      );
+
+      return regex.test(stop);
+    }) ?? [],
+);
 </script>
 <template>
   <div class="min-h-screen max-w-screen">
@@ -173,19 +187,48 @@ function handleSeeStops(id: string) {
 
         <BDialog
           :open="activeRoute !== null"
-          @close="activeRoute = null"
-          class="bg-white rounded-lg p-3"
+          @close="
+            () => {
+              activeRoute = null;
+              activeRouteStopSearchTerm = '';
+            }
+          "
+          class="bg-white rounded-lg p-3 flex flex-col gap-2"
         >
-          <div class="text-right">
-            <button @click="activeRoute = null" class="p-2">Close X</button>
+          <div class="text-right -top-3 z-50 sticky bg-white pb-2">
+            <button
+              @click="
+                () => {
+                  activeRoute = null;
+                  activeRouteStopSearchTerm = '';
+                }
+              "
+              class="p-2"
+            >
+              Close X
+            </button>
+            <input
+              :placeholder="`Search stops in ${
+                activeRoute?.route_name ?? ''
+              } route`"
+              v-model="activeRouteStopSearchTerm"
+              class="w-full rounded p-2"
+              type="text"
+              autofocus
+              autocomplete="off"
+            />
           </div>
-          <div class="grid sm:grid-cols-5 grid-cols-3">
+
+          <div class="flex flex-col-reverse gap-2">
             <div
-              class="border border-gray-200 p-2 break-words text-sm"
-              v-for="stop in activeRoute?.route_stops ?? []"
+              class="p-2 text-sm flex items-center gap-2"
+              v-for="stop in activeRouteStops"
               :key="stop"
             >
-              {{ stop }}
+              <span
+                class="relative w-3 h-3 rounded-full bg-gray-500 before:(content-none z-1 block absolute inset-1 w-1 h-1 rounded-full bg-white)"
+              ></span>
+              <span>{{ stop }}</span>
             </div>
           </div>
         </BDialog>

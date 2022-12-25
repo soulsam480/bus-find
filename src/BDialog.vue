@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { onBeforeUnmount, onMounted } from 'vue';
+import { onClickOutside } from '@vueuse/core';
+import { ref } from 'vue';
 
 withDefaults(
   defineProps<{
@@ -14,21 +15,9 @@ const emits = defineEmits<{
   (e: 'close'): void;
 }>();
 
-function onClick(e: MouseEvent) {
-  const box = document.getElementById('box');
+const target = ref(null);
 
-  if (!box?.contains(e.currentTarget as Node)) {
-    emits('close');
-  }
-}
-
-onMounted(() => {
-  document.addEventListener('click', onClick);
-});
-
-onBeforeUnmount(() => {
-  document.removeEventListener('click', onClick);
-});
+onClickOutside(target, () => emits('close'));
 </script>
 
 <template>
@@ -42,6 +31,7 @@ onBeforeUnmount(() => {
         v-bind="$attrs"
         class="sm:min-w-[500px] sm:max-w-[800px] mx-auto max-w-[95%] max-h-800px overflow-auto"
         id="box"
+        ref="target"
       >
         <slot />
       </dialog>

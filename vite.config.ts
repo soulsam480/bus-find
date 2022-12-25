@@ -4,6 +4,7 @@ import Unocss from 'unocss/vite';
 import presetWind from '@unocss/preset-wind';
 import { presetForms } from '@julr/unocss-preset-forms';
 import { VitePWA } from 'vite-plugin-pwa';
+import transformerVariantGroup from '@unocss/transformer-variant-group';
 
 // https://vitejs.dev/config/
 export default defineConfig({
@@ -11,6 +12,7 @@ export default defineConfig({
     vue(),
     Unocss({
       presets: [presetWind(), presetForms()],
+      transformers: [transformerVariantGroup()],
     }),
     VitePWA({
       registerType: 'autoUpdate',

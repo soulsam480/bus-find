@@ -4,6 +4,7 @@ specifiers:
   '@julr/unocss-preset-forms': ^0.0.2
   '@unocss/preset-wind': ^0.48.0
   '@unocss/reset': ^0.48.0
+  '@unocss/transformer-variant-group': ^0.48.0
   '@vitejs/plugin-vue': ^4.0.0
   '@vueuse/core': ^9.9.0
   '@vueuse/integrations': ^9.9.0
@@ -27,6 +28,7 @@ dependencies:
 devDependencies:
   '@julr/unocss-preset-forms': 0.0.2_unocss@0.48.0
   '@unocss/preset-wind': 0.48.0
+  '@unocss/transformer-variant-group': 0.48.0
   '@vitejs/plugin-vue': 4.0.0_vite@4.0.3+vue@3.2.45
   typescript: 4.9.4
   unocss: 0.48.0_vite@4.0.3
