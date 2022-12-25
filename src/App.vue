@@ -36,7 +36,7 @@ onMounted(() => {
   if (Object.keys(params).length === 0) {
     STATE_KEYS.forEach((key) => {
       //@ts-expect-error bad types
-      store.value[key as keyof IStore] = params[key];
+      params[key as keyof IStore] = store.value[key];
     });
   } else if (JSON.stringify(store.value) !== JSON.stringify(params)) {
     store.value = params;
