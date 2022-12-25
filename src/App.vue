@@ -33,6 +33,17 @@ function copyToClip() {
 }
 
 onMounted(() => {
+  let _store = { ...store.value };
+
+  if (Object.keys(_store).length < 4) {
+    store.value = {
+      input: '',
+      limit: 30,
+      page: 1,
+      searchBy: 'both',
+    };
+  }
+
   if (Object.keys(params).length === 0) {
     STATE_KEYS.forEach((key) => {
       //@ts-expect-error bad types
