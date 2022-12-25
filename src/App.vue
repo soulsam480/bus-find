@@ -225,16 +225,24 @@ const activeRouteStops = computed(
           </div>
 
           <div class="flex flex-col-reverse gap-2">
-            <div
-              class="p-2 text-sm flex items-center gap-2"
-              v-for="stop in activeRouteStops"
-              :key="stop"
-            >
-              <span
-                class="relative w-3 h-3 rounded-full bg-gray-500 before:(content-none z-1 block absolute inset-1 w-1 h-1 rounded-full bg-white)"
-              ></span>
-              <span>{{ stop }}</span>
-            </div>
+            <template v-if="activeRouteStops.length > 0">
+              <div
+                class="p-2 text-sm flex items-center gap-2"
+                v-for="stop in activeRouteStops"
+                :key="stop"
+              >
+                <span
+                  class="relative w-3 h-3 rounded-full bg-gray-500 before:(content-none z-1 block absolute inset-1 w-1 h-1 rounded-full bg-white)"
+                ></span>
+                <span>{{ stop }}</span>
+              </div>
+            </template>
+
+            <template v-else>
+              <div class="p-2 text-sm flex items-center gap-2">
+                No stops found
+              </div>
+            </template>
           </div>
         </BDialog>
 

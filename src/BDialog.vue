@@ -29,7 +29,7 @@ onClickOutside(target, () => emits('close'));
       <dialog
         open
         v-bind="$attrs"
-        class="sm:min-w-[500px] sm:max-w-[800px] mx-auto max-w-[95%] max-h-800px overflow-auto"
+        class="sm:min-w-[500px] sm:max-w-[800px] mx-auto max-w-[95%] max-h-800px min-h-500px sm:min-h-auto overflow-auto"
         id="box"
         ref="target"
       >
