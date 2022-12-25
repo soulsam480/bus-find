@@ -172,7 +172,12 @@ const activeRouteStops = computed(
         <div class="flex items-start gap-2">
           <div class="flex flex-col gap-2">
             <div class="text-2xl font-semibold inline-flex items-center">
-              <img src="/icon-48-48.png" alt="logo" /> Search bus
+              <img
+                src="/icon-192-192.png"
+                class="w-12 h-12 antialiased"
+                alt="logo"
+              />
+              Search bus
             </div>
             <div class="text-xs">
               The search uses fuzzy search technique. It will find results
