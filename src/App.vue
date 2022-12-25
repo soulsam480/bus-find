@@ -50,7 +50,11 @@ onMounted(() => {
       params[key as keyof IStore] = store.value[key];
     });
   } else if (JSON.stringify(store.value) !== JSON.stringify(params)) {
-    store.value = params;
+    store.value = {
+      ...params,
+      limit: Number(params.limit),
+      page: Number(params.page),
+    };
   }
 });
 
