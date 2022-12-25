@@ -1,15 +1,15 @@
 <script setup lang="ts">
-import { computed, onMounted, ref, watch, watchEffect } from 'vue';
 import {
-  useStorage,
-  useWebWorker,
-  useUrlSearchParams,
   useClipboard,
+  useStorage,
+  useUrlSearchParams,
+  useWebWorker,
 } from '@vueuse/core';
+import { computed, onMounted, ref, watch, watchEffect } from 'vue';
+import BDialog from './BDialog.vue';
+import { IRoute, IWorkerResponse } from './search.worker';
 import SearchWorker from './search.worker?worker';
 import { IStore } from './type';
-import { IRoute, IWorkerResponse } from './search.worker';
-import BDialog from './BDialog.vue';
 
 const STATE_KEYS = ['input', 'limit', 'page', 'searchBy'];
 
@@ -142,7 +142,9 @@ function handleSeeStops(id: string) {
       >
         <div class="flex items-start gap-2">
           <div class="flex flex-col gap-2">
-            <div class="text-2xl font-semibold">Search bus</div>
+            <div class="text-2xl font-semibold inline-flex items-center">
+              <img src="icon-48-48.png" alt="logo" /> Search bus
+            </div>
             <div class="text-sm">
               The search uses fuzzy search technique. It will find results
               approximately matching the search query.
