@@ -1,11 +1,17 @@
 <script setup lang="ts">
-import { computed, ref, watch, watchEffect } from 'vue';
-import { useStorage, useWebWorker } from '@vueuse/core';
+import { computed, onMounted, ref, watch, watchEffect } from 'vue';
+import {
+  useStorage,
+  useWebWorker,
+  useUrlSearchParams,
+  useClipboard,
+} from '@vueuse/core';
 import SearchWorker from './search.worker?worker';
 import { IStore } from './type';
 import { IRoute, IWorkerResponse } from './search.worker';
 import BDialog from './BDialog.vue';
-import type Fuse from 'fuse.js';
+
+const STATE_KEYS = ['input', 'limit', 'page', 'searchBy'];
 
 const store = useStorage<IStore>('store', {
   input: '',
@@ -13,6 +19,40 @@ const store = useStorage<IStore>('store', {
   page: 1,
   searchBy: 'both',
 });
+
+const params = useUrlSearchParams<IStore>('history');
+
+const {
+  copy,
+  isSupported,
+  copied: copiedFull,
+} = useClipboard({ legacy: true });
+
+function copyToClip() {
+  copy(window.location.href);
+}
+
+onMounted(() => {
+  if (Object.keys(params).length === 0) {
+    STATE_KEYS.forEach((key) => {
+      //@ts-expect-error bad types
+      store.value[key as keyof IStore] = params[key];
+    });
+  } else if (JSON.stringify(store.value) !== JSON.stringify(params)) {
+    store.value = params;
+  }
+});
+
+watch(
+  store,
+  (val) => {
+    STATE_KEYS.forEach((key) => {
+      //@ts-expect-error bad types
+      params[key as keyof IStore] = val[key];
+    });
+  },
+  { deep: true },
+);
 
 const input = computed(() => store.value.input);
 
@@ -76,8 +116,6 @@ watch(
 watch(
   () => response.value?.route,
   (value) => {
-    console.log(value);
-
     if (value !== undefined) {
       activeRoute.value = value;
     }
@@ -222,12 +260,22 @@ function handleSeeStops(id: string) {
               : 'Bus stops'
           }}
         </div>
+
+        <div v-if="isSupported">
+          <button
+            @click="copyToClip()"
+            class="rounded px-2 py-1 bg-gray-500 text-sm text-white self-center"
+          >
+            <span v-if="copiedFull"> Copied ! </span>
+            <span v-else> Copy search link </span>
+          </button>
+        </div>
       </div>
 
       <div class="flex flex-col gap-2 p-2">
         <template v-if="typeof response !== 'string'">
           <div
-            class="grid grid-cols-3 items-center gap-2 bg-gray-100 rounded-lg px-2 py-3"
+            class="flex justify-between items-center gap-2 bg-gray-100 rounded-lg px-2 py-3"
             v-for="bus in response?.results ?? []"
             :key="String(bus.id)"
           >
@@ -235,22 +283,22 @@ function handleSeeStops(id: string) {
               {{ bus.route_name }}
             </div>
 
-            <div>
+            <div class="flex justify-end gap-3 items-center">
+              <a
+                v-if="bus.map_link"
+                :href="bus.map_link"
+                target="_blank"
+                class="underline font-semibold text-sm"
+                >google map</a
+              >
+
               <button
                 class="rounded p-1 bg-gray-500 text-sm text-white self-center"
                 @click="handleSeeStops(bus.id)"
               >
-                See stops
+                see stops
               </button>
             </div>
-
-            <a
-              v-if="bus.map_link"
-              :href="bus.map_link"
-              target="_blank"
-              class="underline font-semibold text-sm"
-              >Open Route in Map</a
-            >
           </div>
         </template>
       </div>
