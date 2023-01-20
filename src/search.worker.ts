@@ -58,7 +58,7 @@ class FuseWorker {
 
       set('__bus_find__', this.data);
     } catch (error) {
-      console.log('Worker error', error);
+      console.log('[Worker error]', error);
     }
   }
 
@@ -68,13 +68,15 @@ class FuseWorker {
     return data.slice(start, end);
   }
 
-  handleSearch(data: IWorkerParams, force = false) {
-    if (!data.input)
-      postMessage({
+  handleSearch(data: IWorkerParams, force = false): IWorkerResponse {
+    if (!data.input) {
+      return {
         pages: 0,
         current: 1,
         results: [],
-      });
+        total: 0,
+      };
+    }
 
     if (force || data.input !== this.lastSearch) {
       console.log('searching');
@@ -96,7 +98,7 @@ class FuseWorker {
 
     this.lastResponse = result;
 
-    postMessage(result);
+    return result;
   }
 
   handleMessage(e: MessageEvent) {
@@ -105,10 +107,10 @@ class FuseWorker {
     if (data.op === 'SEARCH') {
       this.handleSearch(data);
     } else if (data.op === 'GET_ROUTE' && data.id !== undefined) {
-      postMessage({
+      return {
         ...this.lastResponse,
         route: this.getRoute(data.id),
-      });
+      };
     } else if (data.op === 'SET_OPTION') {
       this.initFuse(data.searchBy as any);
       this.handleSearch(data, true);
@@ -147,8 +149,8 @@ class FuseWorker {
   }
 }
 
-new FuseWorker().init().then((worker) => {
-  postMessage('ready');
+const searchWorker = new FuseWorker();
 
-  addEventListener('message', worker.handleMessage.bind(worker));
-});
+searchWorker.init().then(() => postMessage('ready'));
+
+export default searchWorker;

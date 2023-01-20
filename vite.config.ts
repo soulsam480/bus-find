@@ -5,11 +5,13 @@ import presetWind from '@unocss/preset-wind';
 import { presetForms } from '@julr/unocss-preset-forms';
 import { VitePWA } from 'vite-plugin-pwa';
 import transformerVariantGroup from '@unocss/transformer-variant-group';
+import { comlink } from 'vite-plugin-comlink';
 
 // https://vitejs.dev/config/
 export default defineConfig({
   plugins: [
     vue(),
+    comlink(),
     Unocss({
       presets: [presetWind(), presetForms()],
       transformers: [transformerVariantGroup()],
@@ -38,4 +40,7 @@ export default defineConfig({
       },
     }),
   ],
+  worker: {
+    plugins: [comlink()],
+  },
 });

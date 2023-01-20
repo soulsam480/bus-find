@@ -33,9 +33,7 @@ function copyToClip() {
 }
 
 onMounted(() => {
-  let _store = { ...store.value };
-
-  if (Object.keys(_store).length < 4) {
+  if (Object.keys(store.value).length < 4) {
     store.value = {
       input: '',
       limit: 30,
@@ -162,6 +160,8 @@ const activeRouteStops = computed(
       return regex.test(stop);
     }) ?? [],
 );
+
+const isString = (val: any): val is string => typeof val === 'string';
 </script>
 <template>
   <div class="min-h-screen max-w-screen">
@@ -336,7 +336,7 @@ const activeRouteStops = computed(
       </div>
 
       <div class="flex flex-col gap-2 p-2">
-        <template v-if="typeof response !== 'string'">
+        <template v-if="!isString(response)">
           <div
             class="flex justify-between items-center gap-2 bg-gray-100 rounded-lg px-2 py-3"
             v-for="bus in response?.results ?? []"
