@@ -18,11 +18,10 @@ export interface IWorkerResponse {
 }
 
 interface IWorkerParams extends IStore {
-  op: 'SEARCH' | 'GET_ROUTE' | 'SET_OPTION';
   id?: string;
 }
 
-class FuseWorker {
+export class SearchWorker {
   fuse!: Fuse<IRoute>;
   data: IRoute[] = [];
 
@@ -45,10 +44,14 @@ class FuseWorker {
   }
 
   getRoute(id?: string) {
-    return this.lastResults.find((route) => route.item.id === id)?.item;
+    console.log('[worker]: route lookup ', id);
+
+    return this.lastResults.find((route) => route.item.id === id)?.item ?? null;
   }
 
   async getDb() {
+    console.log('[worker]: fetching db');
+
     try {
       const resp = await fetch(
         'https://golden-beijinho-3bd2e6.netlify.app/db.json',
@@ -57,8 +60,10 @@ class FuseWorker {
       this.data = await resp.json();
 
       set('__bus_find__', this.data);
+
+      console.log('[worker]: fetching db done');
     } catch (error) {
-      console.log('[Worker error]', error);
+      console.log('[worker]: fetching db error ', error);
     }
   }
 
@@ -69,6 +74,8 @@ class FuseWorker {
   }
 
   handleSearch(data: IWorkerParams, force = false): IWorkerResponse {
+    const start = Date.now();
+
     if (!data.input) {
       return {
         pages: 0,
@@ -79,11 +86,13 @@ class FuseWorker {
     }
 
     if (force || data.input !== this.lastSearch) {
-      console.log('searching');
+      console.log('[worker]: searching query ', data.input);
 
       this.lastSearch = data.input;
 
       this.lastResults = this.search(data.input);
+    } else {
+      console.log('[worker]: using last search cache for ', data.input);
     }
 
     // @ts-expect-error added later
@@ -98,26 +107,21 @@ class FuseWorker {
 
     this.lastResponse = result;
 
+    console.log('[worker]: search done in ', Date.now() - start, ' ms');
+
     return result;
   }
 
-  handleMessage(e: MessageEvent) {
-    const data = JSON.parse(e.data) as IWorkerParams;
+  setConfig(params: IWorkerParams) {
+    console.log('[worker]: set option', JSON.stringify(params));
 
-    if (data.op === 'SEARCH') {
-      this.handleSearch(data);
-    } else if (data.op === 'GET_ROUTE' && data.id !== undefined) {
-      return {
-        ...this.lastResponse,
-        route: this.getRoute(data.id),
-      };
-    } else if (data.op === 'SET_OPTION') {
-      this.initFuse(data.searchBy as any);
-      this.handleSearch(data, true);
-    }
+    this.initFuse(params.searchBy);
+    return this.handleSearch(params, true);
   }
 
   initFuse(searchBy: IWorkerParams['searchBy'] = 'both') {
+    console.log('[worker]: Fuse init');
+
     const keys =
       searchBy === 'both' ? ['route_name', 'route_stops'] : [searchBy];
 
@@ -134,9 +138,13 @@ class FuseWorker {
       },
       index,
     );
+
+    console.log('[worker]: Fuse init done');
   }
 
   async init() {
+    console.log('[worker]: init');
+
     this.data = (await get('__bus_find__')) || [];
 
     if (!this.data.length) {
@@ -148,9 +156,3 @@ class FuseWorker {
     return this;
   }
 }
-
-const searchWorker = new FuseWorker();
-
-searchWorker.init().then(() => postMessage('ready'));
-
-export default searchWorker;

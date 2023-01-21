@@ -3,13 +3,17 @@ import {
   useClipboard,
   useStorage,
   useUrlSearchParams,
-  useWebWorker,
+  watchDebounced,
 } from '@vueuse/core';
-import { computed, onMounted, ref, watch, watchEffect } from 'vue';
+import { computed, onMounted, ref, watch } from 'vue';
 import BDialog from './BDialog.vue';
-import { IRoute, IWorkerResponse } from './search.worker';
-import SearchWorker from './search.worker?worker';
+import type { SearchWorker, IRoute, IWorkerResponse } from './search.worker';
 import { IStore } from './type';
+import type { Remote } from 'comlink';
+
+const withComLink = new ComlinkWorker<typeof import('./search.worker')>(
+  new URL('./search.worker.ts', import.meta.url),
+);
 
 const STATE_KEYS = ['input', 'limit', 'page', 'searchBy'];
 
@@ -19,8 +23,9 @@ const store = useStorage<IStore>('store', {
   page: 1,
   searchBy: 'both',
 });
-
 const params = useUrlSearchParams<IStore>('history');
+
+const workerResponse = ref<IWorkerResponse | null>(null);
 
 const {
   copy,
@@ -32,14 +37,22 @@ function copyToClip() {
   copy(window.location.href);
 }
 
-onMounted(() => {
+let searchWorker: Remote<SearchWorker>;
+
+onMounted(async () => {
+  searchWorker = await new withComLink.SearchWorker();
+
+  await searchWorker.init();
+
+  let defaultParams: IStore = {
+    input: '',
+    limit: 30,
+    page: 1,
+    searchBy: 'both',
+  };
+
   if (Object.keys(store.value).length < 4) {
-    store.value = {
-      input: '',
-      limit: 30,
-      page: 1,
-      searchBy: 'both',
-    };
+    store.value = defaultParams;
   }
 
   if (Object.keys(params).length === 0) {
@@ -48,12 +61,16 @@ onMounted(() => {
       params[key as keyof IStore] = store.value[key];
     });
   } else if (JSON.stringify(store.value) !== JSON.stringify(params)) {
-    store.value = {
+    defaultParams = {
       ...params,
       limit: Number(params.limit),
       page: Number(params.page),
     };
+
+    store.value = defaultParams;
   }
+
+  workerResponse.value = await searchWorker.setConfig(defaultParams);
 });
 
 watch(
@@ -69,82 +86,34 @@ watch(
 
 const input = computed(() => store.value.input);
 
-const { data: response, post } = useWebWorker<IWorkerResponse | null>(
-  () => new SearchWorker(),
-);
-
-watchEffect(() => {
-  if (typeof response.value === 'string') {
-    post(
-      JSON.stringify({
-        ...store.value,
-        op: 'SET_OPTION',
-      }),
-    );
-
-    const payload = {
+watchDebounced(
+  input,
+  async () => {
+    store.value = {
       ...store.value,
-      op: 'SEARCH',
+      page: 1,
     };
 
-    post(JSON.stringify(payload));
-  }
-});
+    workerResponse.value = await searchWorker.handleSearch({ ...store.value });
+  },
+  { debounce: 100 },
+);
 
-watch(input, () => {
-  store.value = {
-    ...store.value,
-    page: 1,
-  };
-
-  const payload = {
-    ...store.value,
-    op: 'SEARCH',
-  };
-
-  post(JSON.stringify(payload));
-});
-
-watch([() => store.value.limit, () => store.value.page], () => {
-  const payload = {
-    ...store.value,
-    op: 'SEARCH',
-  };
-
-  post(JSON.stringify(payload));
+watch([() => store.value.limit, () => store.value.page], async () => {
+  workerResponse.value = await searchWorker.handleSearch({ ...store.value });
 });
 
 watch(
   () => store.value.searchBy,
-  () => {
-    const payload = {
-      ...store.value,
-      op: 'SET_OPTION',
-    };
-
-    post(JSON.stringify(payload));
-  },
-);
-
-watch(
-  () => response.value?.route,
-  (value) => {
-    if (value !== undefined) {
-      activeRoute.value = value;
-    }
+  async () => {
+    workerResponse.value = await searchWorker.setConfig({ ...store.value });
   },
 );
 
 const activeRoute = ref<IRoute | null>(null);
 
-function handleSeeStops(id: string) {
-  post(
-    JSON.stringify({
-      ...store.value,
-      id,
-      op: 'GET_ROUTE',
-    }),
-  );
+async function handleSeeStops(id: string) {
+  activeRoute.value = await searchWorker.getRoute(id);
 }
 
 const activeRouteStopSearchTerm = ref('');
@@ -190,7 +159,7 @@ const isString = (val: any): val is string => typeof val === 'string';
           >
         </div>
 
-        <BDialog
+        <b-dialog
           :open="activeRoute !== null"
           @close="
             () => {
@@ -244,7 +213,7 @@ const isString = (val: any): val is string => typeof val === 'string';
               </div>
             </template>
           </div>
-        </BDialog>
+        </b-dialog>
 
         <div class="flex flex-col gap-1">
           <label for="search">Search by route number or bus stops</label>
@@ -288,7 +257,7 @@ const isString = (val: any): val is string => typeof val === 'string';
 
           <div class="flex flex-col gap-1 flex-grow">
             <label class="truncate"
-              >Page (total {{ response?.pages ?? 0 }})</label
+              >Page (total {{ workerResponse?.pages ?? 0 }})</label
             >
 
             <div class="flex items-center gap-4 max-w-full">
@@ -302,7 +271,8 @@ const isString = (val: any): val is string => typeof val === 'string';
               <span class="flex-grow text-center">{{ store.page }}</span>
               <button
                 :disabled="
-                  response?.pages === 0 || store.page === (response?.pages ?? 1)
+                  workerResponse?.pages === 0 ||
+                  store.page === (workerResponse?.pages ?? 1)
                 "
                 @click="store.page += 1"
                 class="rounded p-2 bg-gray-500 text-white h-[34.8px] flex items-center disabled:bg-gray-300 disabled:cursor-not-allowed"
@@ -314,7 +284,8 @@ const isString = (val: any): val is string => typeof val === 'string';
         </div>
 
         <div class="text-sm">
-          Showing {{ store.limit }} of {{ response?.total ?? 'none' }} total
+          Showing {{ store.limit }} of
+          {{ workerResponse?.total ?? 'none' }} total
           {{
             store.searchBy === 'both'
               ? 'results'
@@ -336,10 +307,10 @@ const isString = (val: any): val is string => typeof val === 'string';
       </div>
 
       <div class="flex flex-col gap-2 p-2">
-        <template v-if="!isString(response)">
+        <template v-if="!isString(workerResponse)">
           <div
             class="flex justify-between items-center gap-2 bg-gray-100 rounded-lg px-2 py-3"
-            v-for="bus in response?.results ?? []"
+            v-for="bus in workerResponse?.results ?? []"
             :key="String(bus.id)"
           >
             <div class="text-xl">

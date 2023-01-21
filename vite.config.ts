@@ -1,4 +1,4 @@
-import { defineConfig } from 'vite';
+import { defineConfig, splitVendorChunkPlugin } from 'vite';
 import vue from '@vitejs/plugin-vue';
 import Unocss from 'unocss/vite';
 import presetWind from '@unocss/preset-wind';
@@ -9,6 +9,9 @@ import { comlink } from 'vite-plugin-comlink';
 
 // https://vitejs.dev/config/
 export default defineConfig({
+  build: {
+    sourcemap: false,
+  },
   plugins: [
     vue(),
     comlink(),
@@ -16,6 +19,7 @@ export default defineConfig({
       presets: [presetWind(), presetForms()],
       transformers: [transformerVariantGroup()],
     }),
+    splitVendorChunkPlugin(),
     VitePWA({
       registerType: 'autoUpdate',
       workbox: {
