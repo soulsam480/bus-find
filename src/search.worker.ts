@@ -29,6 +29,10 @@ export class SearchWorker {
   lastResults: Fuse.FuseResult<IRoute>[] = [];
   lastResponse!: IWorkerResponse;
 
+  log(...args: any[]) {
+    console.log('[search worker]: ', ...args);
+  }
+
   search(value: string) {
     return this.fuse.search(value);
   }
@@ -44,13 +48,13 @@ export class SearchWorker {
   }
 
   getRoute(id?: string) {
-    console.log('[worker]: route lookup ', id);
+    this.log('route lookup ', id);
 
     return this.lastResults.find((route) => route.item.id === id)?.item ?? null;
   }
 
-  async getDb() {
-    console.log('[worker]: fetching db');
+  async fetchDb() {
+    this.log('fetching db');
 
     try {
       const resp = await fetch(
@@ -61,9 +65,9 @@ export class SearchWorker {
 
       set('__bus_find__', this.data);
 
-      console.log('[worker]: fetching db done');
+      this.log('fetching db done');
     } catch (error) {
-      console.log('[worker]: fetching db error ', error);
+      this.log('fetching db error ', error);
     }
   }
 
@@ -86,13 +90,13 @@ export class SearchWorker {
     }
 
     if (force || data.input !== this.lastSearch) {
-      console.log('[worker]: searching query ', data.input);
+      this.log('searching query ', data.input);
 
       this.lastSearch = data.input;
 
       this.lastResults = this.search(data.input);
     } else {
-      console.log('[worker]: using last search cache for ', data.input);
+      this.log('using last search cache for ', data.input);
     }
 
     // @ts-expect-error added later
@@ -107,30 +111,20 @@ export class SearchWorker {
 
     this.lastResponse = result;
 
-    console.log('[worker]: search done in ', Date.now() - start, ' ms');
+    this.log('search done in ', Date.now() - start, ' ms');
 
     return result;
   }
 
-  setConfig(params: IWorkerParams) {
-    console.log('[worker]: set option', JSON.stringify(params));
+  initFuse() {
+    this.log('Fuse init');
 
-    this.initFuse(params.searchBy);
-    return this.handleSearch(params, true);
-  }
-
-  initFuse(searchBy: IWorkerParams['searchBy'] = 'both') {
-    console.log('[worker]: Fuse init');
-
-    const keys =
-      searchBy === 'both' ? ['route_name', 'route_stops'] : [searchBy];
-
-    const index = Fuse.createIndex(keys, this.data);
+    const index = Fuse.createIndex(['route_name'], this.data);
 
     this.fuse = new Fuse<IRoute>(
       this.data,
       {
-        keys,
+        keys: ['route_name'],
         shouldSort: true,
         distance: 50,
         includeMatches: false,
@@ -139,17 +133,17 @@ export class SearchWorker {
       index,
     );
 
-    console.log('[worker]: Fuse init done');
+    this.log('Fuse init done');
   }
 
   async init() {
-    console.log('[worker]: init');
+    this.log('init');
 
     this.data = (await get('__bus_find__')) || [];
 
     if (!this.data.length) {
-      await this.getDb();
-    } else this.getDb();
+      await this.fetchDb();
+    } else this.fetchDb();
 
     this.initFuse();
 

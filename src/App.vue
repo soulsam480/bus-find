@@ -1,27 +1,34 @@
 <script setup lang="ts">
-import {
-  useClipboard,
-  useStorage,
-  useUrlSearchParams,
-  watchDebounced,
-} from '@vueuse/core';
+import { useClipboard, useStorage, useUrlSearchParams } from '@vueuse/core';
+import type { Remote } from 'comlink';
 import { computed, onMounted, ref, watch } from 'vue';
 import BDialog from './BDialog.vue';
-import type { SearchWorker, IRoute, IWorkerResponse } from './search.worker';
+import PerPage from './PerPage.vue';
+import type { IRoute, IWorkerResponse, SearchWorker } from './search.worker';
+import type { StopsWorker } from './stops.worker';
 import { IStore } from './type';
-import type { Remote } from 'comlink';
-
-const withComLink = new ComlinkWorker<typeof import('./search.worker')>(
-  new URL('./search.worker.ts', import.meta.url),
-);
 
 const STATE_KEYS = ['input', 'limit', 'page', 'searchBy'];
+
+const searchWorkerWithComlink = new ComlinkWorker<
+  typeof import('./search.worker')
+>(new URL('./search.worker.ts', import.meta.url));
+
+let searchWorker: Remote<SearchWorker>;
+
+const stopsWorkerWithComlink = new ComlinkWorker<
+  typeof import('./stops.worker')
+>(new URL('./stops.worker.ts', import.meta.url));
+
+let stopsWorker: Remote<StopsWorker>;
+
+const view = ref<'route_name' | 'location'>('route_name');
 
 const store = useStorage<IStore>('store', {
   input: '',
   limit: 30,
   page: 1,
-  searchBy: 'both',
+  searchBy: 'route_name',
 });
 const params = useUrlSearchParams<IStore>('history');
 
@@ -37,18 +44,26 @@ function copyToClip() {
   copy(window.location.href);
 }
 
-let searchWorker: Remote<SearchWorker>;
-
-onMounted(async () => {
-  searchWorker = await new withComLink.SearchWorker();
+async function initSearchWorker() {
+  searchWorker = await new searchWorkerWithComlink.SearchWorker();
 
   await searchWorker.init();
+}
+
+async function initStopsWorker() {
+  stopsWorker = await new stopsWorkerWithComlink.StopsWorker();
+
+  await stopsWorker.init();
+}
+
+onMounted(async () => {
+  await Promise.all([initSearchWorker(), initStopsWorker()]);
 
   let defaultParams: IStore = {
     input: '',
     limit: 30,
     page: 1,
-    searchBy: 'both',
+    searchBy: 'route_name',
   };
 
   if (Object.keys(store.value).length < 4) {
@@ -70,7 +85,9 @@ onMounted(async () => {
     store.value = defaultParams;
   }
 
-  workerResponse.value = await searchWorker.setConfig(defaultParams);
+  workerResponse.value = await searchWorker.handleSearch({
+    ...defaultParams,
+  });
 });
 
 watch(
@@ -86,18 +103,14 @@ watch(
 
 const input = computed(() => store.value.input);
 
-watchDebounced(
-  input,
-  async () => {
-    store.value = {
-      ...store.value,
-      page: 1,
-    };
+watch(input, async () => {
+  store.value = {
+    ...store.value,
+    page: 1,
+  };
 
-    workerResponse.value = await searchWorker.handleSearch({ ...store.value });
-  },
-  { debounce: 100 },
-);
+  workerResponse.value = await searchWorker.handleSearch({ ...store.value });
+});
 
 watch([() => store.value.limit, () => store.value.page], async () => {
   workerResponse.value = await searchWorker.handleSearch({ ...store.value });
@@ -106,7 +119,7 @@ watch([() => store.value.limit, () => store.value.page], async () => {
 watch(
   () => store.value.searchBy,
   async () => {
-    workerResponse.value = await searchWorker.setConfig({ ...store.value });
+    // workerResponse.value = await searchWorker.setConfig({ ...store.value });
   },
 );
 
@@ -129,8 +142,6 @@ const activeRouteStops = computed(
       return regex.test(stop);
     }) ?? [],
 );
-
-const isString = (val: any): val is string => typeof val === 'string';
 </script>
 <template>
   <div class="min-h-screen max-w-screen">
@@ -215,85 +226,68 @@ const isString = (val: any): val is string => typeof val === 'string';
           </div>
         </b-dialog>
 
-        <div class="flex flex-col gap-1">
-          <label for="search">Search by route number or bus stops</label>
-          <input
-            id="search"
-            class="w-full rounded p-2"
-            type="text"
-            v-model="store.input"
-            placeholder="Search by bus number or stop name"
-            autofocus
-            autocomplete="off"
-          />
-        </div>
-
-        <div class="flex gap-2 items-end">
+        <template v-if="view === 'route_name'">
           <div class="flex flex-col gap-1">
-            <label for="search">Filter By</label>
-            <select v-model="store.searchBy" class="rounded p-2 min-w-[135px]">
-              <option value="both">Both</option>
-              <option value="route_name">Bus number</option>
-              <option value="route_stops">Bus stops</option>
-            </select>
+            <label for="search">Search by route number or bus stops</label>
+            <input
+              id="search"
+              class="w-full rounded p-2"
+              type="text"
+              v-model="store.input"
+              placeholder="Search by bus number or stop name"
+              autofocus
+              autocomplete="off"
+            />
           </div>
 
-          <div class="flex flex-col gap-1">
-            <label for="search">Per page</label>
-            <select
-              v-model.number="store.limit"
-              class="rounded p-2 min-w-[70px]"
-              @change="store.page = 1"
-            >
-              <option value="10">10</option>
-              <option value="20">20</option>
-              <option value="30">30</option>
-              <option value="40">40</option>
-              <option value="60">60</option>
-              <option value="80">80</option>
-              <option value="100">100</option>
-            </select>
-          </div>
-
-          <div class="flex flex-col gap-1 flex-grow">
-            <label class="truncate"
-              >Page (total {{ workerResponse?.pages ?? 0 }})</label
-            >
-
-            <div class="flex items-center gap-4 max-w-full">
-              <button
-                :disabled="store.page === 1"
-                @click="store.page -= 1"
-                class="rounded p-2 bg-gray-500 text-white h-[34.8px] flex items-center disabled:bg-gray-300 disabled:cursor-not-allowed"
+          <div class="flex gap-2 items-end">
+            <div class="flex flex-col gap-1">
+              <label for="search">Filter By</label>
+              <select
+                v-model="store.searchBy"
+                class="rounded p-2 min-w-[135px]"
               >
-                <span>Prev</span>
-              </button>
-              <span class="flex-grow text-center">{{ store.page }}</span>
-              <button
-                :disabled="
-                  workerResponse?.pages === 0 ||
-                  store.page === (workerResponse?.pages ?? 1)
-                "
-                @click="store.page += 1"
-                class="rounded p-2 bg-gray-500 text-white h-[34.8px] flex items-center disabled:bg-gray-300 disabled:cursor-not-allowed"
+                <option value="route_name">Bus number</option>
+                <option value="route_stops">Bus stops</option>
+              </select>
+            </div>
+
+            <per-page v-model:limit="store.limit" />
+
+            <div class="flex flex-col gap-1 flex-grow">
+              <label class="truncate"
+                >Page (total {{ workerResponse?.pages ?? 0 }})</label
               >
-                <span>Next</span>
-              </button>
+
+              <div class="flex items-center gap-4 max-w-full">
+                <button
+                  :disabled="store.page === 1"
+                  @click="store.page -= 1"
+                  class="rounded p-2 bg-gray-500 text-white h-[34.8px] flex items-center disabled:bg-gray-300 disabled:cursor-not-allowed"
+                >
+                  <span>Prev</span>
+                </button>
+                <span class="flex-grow text-center">{{ store.page }}</span>
+                <button
+                  :disabled="
+                    workerResponse?.pages === 0 ||
+                    store.page === (workerResponse?.pages ?? 1)
+                  "
+                  @click="store.page += 1"
+                  class="rounded p-2 bg-gray-500 text-white h-[34.8px] flex items-center disabled:bg-gray-300 disabled:cursor-not-allowed"
+                >
+                  <span>Next</span>
+                </button>
+              </div>
             </div>
           </div>
-        </div>
 
-        <div class="text-sm">
-          Showing {{ store.limit }} of
-          {{ workerResponse?.total ?? 'none' }} total
-          {{
-            store.searchBy === 'both'
-              ? 'results'
-              : store.searchBy === 'route_name'
-              ? 'Bus routes'
-              : 'Bus stops'
-          }}
-        </div>
+          <div class="text-sm">
+            Showing {{ store.limit }} of
+            {{ workerResponse?.total ?? 'none' }} total
+            {{ store.searchBy === 'route_name' ? 'Bus routes' : 'Bus stops' }}
+          </div>
+        </template>
 
         <div v-if="isSupported">
           <button
@@ -307,7 +301,7 @@ const isString = (val: any): val is string => typeof val === 'string';
       </div>
 
       <div class="flex flex-col gap-2 p-2">
-        <template v-if="!isString(workerResponse)">
+        <template v-if="view === 'route_name'">
           <div
             class="flex justify-between items-center gap-2 bg-gray-100 rounded-lg px-2 py-3"
             v-for="bus in workerResponse?.results ?? []"
