@@ -334,6 +334,23 @@ const activeRouteStops = computed(
               </button>
             </div>
           </div>
+
+          <div v-if="!Boolean(workerResponse?.results.length)">
+            <ul class="list-disc text-sm">
+              <li>
+                <span class="font-semibold">Search by stops</span> doesn't work
+                right now
+              </li>
+              <li>
+                The implementation is under works and will be probably done next
+                week once I've some time.
+              </li>
+              <li v-if="sourceInfo === null">
+                If you want to contribute and respect my privacy, LMK will send
+                you the source link, it's FOSS
+              </li>
+            </ul>
+          </div>
         </template>
       </div>
 
