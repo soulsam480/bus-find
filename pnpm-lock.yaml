@@ -2,6 +2,7 @@ lockfileVersion: 5.4
 
 specifiers:
   '@julr/unocss-preset-forms': ^0.0.2
+  '@types/crypto-js': ^4.1.1
   '@unocss/preset-wind': ^0.48.0
   '@unocss/reset': ^0.48.0
   '@unocss/transformer-variant-group': ^0.48.0
@@ -9,6 +10,7 @@ specifiers:
   '@vueuse/core': ^9.9.0
   '@vueuse/integrations': ^9.9.0
   comlink: ^4.3.1
+  crypto-js: ^4.1.1
   fuse.js: ^6.6.2
   idb-keyval: ^6.2.0
   typescript: ^4.9.4
@@ -24,12 +26,14 @@ dependencies:
   '@vueuse/core': 9.9.0_vue@3.2.45
   '@vueuse/integrations': 9.9.0_luwem62evj5gupapzxpy5zwx2q
   comlink: 4.3.1
+  crypto-js: 4.1.1
   fuse.js: 6.6.2
   idb-keyval: 6.2.0
   vue: 3.2.45
 
 devDependencies:
   '@julr/unocss-preset-forms': 0.0.2_unocss@0.48.0
+  '@types/crypto-js': 4.1.1
   '@unocss/preset-wind': 0.48.0
   '@unocss/transformer-variant-group': 0.48.0
   '@vitejs/plugin-vue': 4.0.0_vite@4.0.3+vue@3.2.45
@@ -1627,6 +1631,10 @@ packages:
       string.prototype.matchall: 4.0.8
     dev: true
 
+  /@types/crypto-js/4.1.1:
+    resolution: {integrity: sha512-BG7fQKZ689HIoc5h+6D2Dgq1fABRa0RbBWKBd9SP/MVRVXROflpm5fhwyATX5duFmbStzyzyycPB8qUYKDH3NA==}
+    dev: true
+
   /@types/estree/0.0.39:
     resolution: {integrity: sha512-EYNwp3bU+98cpU4lAWYYL7Zz+2gryWH1qbdDTidVd6hkiR6weksdbMadyXKXNPEkQFhXM+hVO9ZygomHXp+AIw==}
     dev: true
@@ -2259,6 +2267,10 @@ packages:
       shebang-command: 2.0.0
       which: 2.0.2
     dev: true
+
+  /crypto-js/4.1.1:
+    resolution: {integrity: sha512-o2JlM7ydqd3Qk9CA0L4NL6mTzU2sdx96a+oOfPu8Mkl/PK51vSyoi8/rQ8NknZtk44vq15lmhAj9CIAGwgeWKw==}
+    dev: false
 
   /crypto-random-string/2.0.0:
     resolution: {integrity: sha512-v1plID3y9r/lPhviJ1wrXpLeyUIGAZ2SHNYTEapm7/8A9nLPoyvVp3RK/EPFqn5kEznyWgYZNsRtYYIWbuG8KA==}

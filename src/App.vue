@@ -3,6 +3,7 @@ import { useClipboard, useStorage, useUrlSearchParams } from '@vueuse/core';
 import type { Remote } from 'comlink';
 import { computed, onMounted, ref, watch } from 'vue';
 import BDialog from './BDialog.vue';
+import type { IProjectMeta } from './encryption';
 import PerPage from './PerPage.vue';
 import type { IRoute, IWorkerResponse, SearchWorker } from './search.worker';
 import type { StopsWorker } from './stops.worker';
@@ -23,6 +24,7 @@ const stopsWorkerWithComlink = new ComlinkWorker<
 let stopsWorker: Remote<StopsWorker>;
 
 const view = ref<'route_name' | 'location'>('route_name');
+const sourceInfo = ref<IProjectMeta | null>(null);
 
 const store = useStorage<IStore>('store', {
   input: '',
@@ -87,6 +89,10 @@ onMounted(async () => {
 
   workerResponse.value = await searchWorker.handleSearch({
     ...defaultParams,
+  });
+
+  import('./encryption').then(async (mod) => {
+    sourceInfo.value = await mod.getSource();
   });
 });
 
@@ -165,9 +171,9 @@ const activeRouteStops = computed(
             </div>
           </div>
 
-          <a class="underline" href="https://github.com/soulsam480/bus-find"
-            >source</a
-          >
+          <template v-if="sourceInfo !== null">
+            <a class="underline" :href="sourceInfo.source">source</a>
+          </template>
         </div>
 
         <b-dialog
@@ -338,7 +344,9 @@ const activeRouteStops = computed(
         >
         <br />
 
-        Copyright © {{ new Date().getFullYear() }} Sambit Sahoo
+        <span v-if="sourceInfo !== null">
+          Copyright © {{ new Date().getFullYear() }} {{ sourceInfo.author }}
+        </span>
       </div>
     </div>
   </div>

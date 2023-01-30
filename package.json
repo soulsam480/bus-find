@@ -13,12 +13,14 @@
     "@vueuse/core": "^9.9.0",
     "@vueuse/integrations": "^9.9.0",
     "comlink": "^4.3.1",
+    "crypto-js": "^4.1.1",
     "fuse.js": "^6.6.2",
     "idb-keyval": "^6.2.0",
     "vue": "^3.2.41"
   },
   "devDependencies": {
     "@julr/unocss-preset-forms": "^0.0.2",
+    "@types/crypto-js": "^4.1.1",
     "@unocss/preset-wind": "^0.48.0",
     "@unocss/transformer-variant-group": "^0.48.0",
     "@vitejs/plugin-vue": "^4.0.0",
