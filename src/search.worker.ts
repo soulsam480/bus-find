@@ -9,7 +9,7 @@ export interface IRoute {
   map_link: string | null;
 }
 
-export interface IWorkerResponse {
+export interface ISearchWorkerResponse {
   pages: number;
   current: number;
   results: Omit<IRoute, 'route_stops'>[];
@@ -27,7 +27,7 @@ export class SearchWorker {
 
   lastSearch: string = '';
   lastResults: Fuse.FuseResult<IRoute>[] = [];
-  lastResponse!: IWorkerResponse;
+  lastResponse!: ISearchWorkerResponse;
 
   log(...args: any[]) {
     console.log('[search worker]: ', ...args);
@@ -77,7 +77,7 @@ export class SearchWorker {
     return data.slice(start, end);
   }
 
-  handleSearch(data: IWorkerParams, force = false): IWorkerResponse {
+  handleSearch(data: IWorkerParams, force = false): ISearchWorkerResponse {
     const start = Date.now();
 
     if (!data.input) {
@@ -100,7 +100,7 @@ export class SearchWorker {
     }
 
     // @ts-expect-error added later
-    const result: IWorkerResponse = {};
+    const result: ISearchWorkerResponse = {};
 
     result.current = data.page;
     result.pages = Math.ceil(this.lastResults.length / data.limit);

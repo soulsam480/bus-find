@@ -12,7 +12,7 @@ defineEmits<{
     <label for="search">Per page</label>
     <select
       :value="limit"
-      class="rounded p-2 min-w-[70px]"
+      class="rounded px-2 py-1 min-w-[70px]"
       @change="
         $emit(
           'update:limit',

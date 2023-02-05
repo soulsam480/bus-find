@@ -3,38 +3,52 @@ import { useClipboard, useStorage, useUrlSearchParams } from '@vueuse/core';
 import type { Remote } from 'comlink';
 import { computed, onMounted, ref, watch } from 'vue';
 import BDialog from './BDialog.vue';
+import SearchBy from './SearchBy.vue';
 import type { IProjectMeta } from './encryption';
 import PerPage from './PerPage.vue';
-import type { IRoute, IWorkerResponse, SearchWorker } from './search.worker';
+import type {
+  IRoute,
+  ISearchWorkerResponse,
+  SearchWorker,
+} from './search.worker';
 import type { StopsWorker } from './stops.worker';
 import { IStore } from './type';
 
-const STATE_KEYS = ['input', 'limit', 'page', 'searchBy'];
+const STATE_KEYS = [
+  'input',
+  'limit',
+  'page',
+  'searchBy',
+  'sourceStop',
+  'destinationStop',
+];
 
 const searchWorkerWithComlink = new ComlinkWorker<
   typeof import('./search.worker')
 >(new URL('./search.worker.ts', import.meta.url));
 
-let searchWorker: Remote<SearchWorker>;
-
 const stopsWorkerWithComlink = new ComlinkWorker<
   typeof import('./stops.worker')
 >(new URL('./stops.worker.ts', import.meta.url));
 
+let searchWorker: Remote<SearchWorker>;
 let stopsWorker: Remote<StopsWorker>;
 
-const view = ref<'route_name' | 'location'>('route_name');
 const sourceInfo = ref<IProjectMeta | null>(null);
-
 const store = useStorage<IStore>('store', {
   input: '',
   limit: 30,
   page: 1,
   searchBy: 'route_name',
+  sourceStop: '',
+  destinationStop: '',
 });
-const params = useUrlSearchParams<IStore>('history');
+const searchWorkerResponse = ref<ISearchWorkerResponse | null>(null);
+const stopsWorkerResponse = ref<string[]>([]);
+const stopSearchFieldInFocus = ref<'source' | 'destination' | null>(null);
+const workerInit = ref(false);
 
-const workerResponse = ref<IWorkerResponse | null>(null);
+const params = useUrlSearchParams<IStore>('history');
 
 const {
   copy,
@@ -61,11 +75,15 @@ async function initStopsWorker() {
 onMounted(async () => {
   await Promise.all([initSearchWorker(), initStopsWorker()]);
 
+  workerInit.value = true;
+
   let defaultParams: IStore = {
     input: '',
     limit: 30,
     page: 1,
     searchBy: 'route_name',
+    sourceStop: '',
+    destinationStop: '',
   };
 
   if (Object.keys(store.value).length < 4) {
@@ -87,9 +105,13 @@ onMounted(async () => {
     store.value = defaultParams;
   }
 
-  workerResponse.value = await searchWorker.handleSearch({
-    ...defaultParams,
-  });
+  if (store.value.searchBy === 'route_stops') {
+    stopSearchFieldInFocus.value = 'source';
+  } else {
+    searchWorkerResponse.value = await searchWorker.handleSearch({
+      ...defaultParams,
+    });
+  }
 
   import('./encryption').then(async (mod) => {
     sourceInfo.value = await mod.getSource();
@@ -107,27 +129,69 @@ watch(
   { deep: true },
 );
 
-const input = computed(() => store.value.input);
+const routeNameSearchQuery = computed(() => store.value.input);
 
-watch(input, async () => {
+watch(routeNameSearchQuery, async () => {
   store.value = {
     ...store.value,
     page: 1,
   };
 
-  workerResponse.value = await searchWorker.handleSearch({ ...store.value });
+  searchWorkerResponse.value = await searchWorker.handleSearch({
+    ...store.value,
+  });
 });
 
 watch([() => store.value.limit, () => store.value.page], async () => {
-  workerResponse.value = await searchWorker.handleSearch({ ...store.value });
+  searchWorkerResponse.value = await searchWorker.handleSearch({
+    ...store.value,
+  });
 });
 
+watch(() => store.value.searchBy, handleSearchByChange);
+
 watch(
-  () => store.value.searchBy,
-  async () => {
-    // workerResponse.value = await searchWorker.setConfig({ ...store.value });
+  [
+    () => store.value.sourceStop,
+    () => store.value.destinationStop,
+    stopSearchFieldInFocus,
+    workerInit,
+  ],
+  async ([source, dest, fieldInFocus, workerInit]) => {
+    if (!workerInit || fieldInFocus === null) return;
+
+    stopsWorkerResponse.value = await stopsWorker.search(
+      fieldInFocus === 'source' ? source : dest,
+    );
   },
 );
+
+function handleStopFieldSelection(stop: string) {
+  if (stopSearchFieldInFocus.value === 'source') {
+    store.value.sourceStop = stop;
+  } else {
+    store.value.destinationStop = stop;
+  }
+
+  stopSearchFieldInFocus.value = null;
+  stopsWorkerResponse.value = [];
+}
+
+function handleFieldFocus(field: 'source' | 'destination') {
+  stopSearchFieldInFocus.value = field;
+}
+
+async function handleSearchByChange(mode: IStore['searchBy']) {
+  if (mode === 'route_name') {
+    stopSearchFieldInFocus.value = null;
+    searchWorkerResponse.value = await searchWorker.handleSearch({
+      ...store.value,
+    });
+  } else {
+    document.querySelector<HTMLElement>('#source-stop')?.focus();
+    stopSearchFieldInFocus.value = 'source';
+  }
+}
 
 const activeRoute = ref<IRoute | null>(null);
 
@@ -135,13 +199,13 @@ async function handleSeeStops(id: string) {
   activeRoute.value = await searchWorker.getRoute(id);
 }
 
-const activeRouteStopSearchTerm = ref('');
+const activeRouteStopSearchQuery = ref('');
 
 const activeRouteStops = computed(
   () =>
     activeRoute.value?.route_stops.slice().filter((stop) => {
       const regex = new RegExp(
-        `${activeRouteStopSearchTerm.value.replace(/\\|\//g, '')}`,
+        `${activeRouteStopSearchQuery.value.replace(/\\|\//g, '')}`,
         'i',
       );
 
@@ -181,7 +245,7 @@ const activeRouteStops = computed(
           @close="
             () => {
               activeRoute = null;
-              activeRouteStopSearchTerm = '';
+              activeRouteStopSearchQuery = '';
             }
           "
           class="bg-white rounded-lg p-3 flex flex-col gap-2"
@@ -191,7 +255,7 @@ const activeRouteStops = computed(
               @click="
                 () => {
                   activeRoute = null;
-                  activeRouteStopSearchTerm = '';
+                  activeRouteStopSearchQuery = '';
                 }
               "
               class="p-2"
@@ -202,7 +266,7 @@ const activeRouteStops = computed(
               :placeholder="`Search stops in ${
                 activeRoute?.route_name ?? ''
               } route`"
-              v-model="activeRouteStopSearchTerm"
+              v-model="activeRouteStopSearchQuery"
               class="w-full rounded p-2"
               type="text"
               autofocus
@@ -232,85 +296,121 @@ const activeRouteStops = computed(
           </div>
         </b-dialog>
 
-        <template v-if="view === 'route_name'">
+        <search-by v-model:mode="store.searchBy" />
+
+        <template v-if="store.searchBy === 'route_name'">
           <div class="flex flex-col gap-1">
-            <label for="search">Search by route number or bus stops</label>
+            <label for="search">Source</label>
             <input
               id="search"
-              class="w-full rounded p-2"
+              class="w-full rounded px-2 py-1"
               type="text"
               v-model="store.input"
-              placeholder="Search by bus number or stop name"
+              placeholder="Source"
               autofocus
               autocomplete="off"
             />
           </div>
 
-          <div class="flex gap-2 items-end">
-            <div class="flex flex-col gap-1">
-              <label for="search">Filter By</label>
-              <select
-                v-model="store.searchBy"
-                class="rounded p-2 min-w-[135px]"
-              >
-                <option value="route_name">Bus number</option>
-                <option value="route_stops">Bus stops</option>
-              </select>
-            </div>
-
+          <div class="flex gap-2">
             <per-page v-model:limit="store.limit" />
 
             <div class="flex flex-col gap-1 flex-grow">
               <label class="truncate"
-                >Page (total {{ workerResponse?.pages ?? 0 }})</label
+                >Page (total {{ searchWorkerResponse?.pages ?? 0 }})</label
               >
 
               <div class="flex items-center gap-4 max-w-full">
                 <button
                   :disabled="store.page === 1"
                   @click="store.page -= 1"
-                  class="rounded p-2 bg-gray-500 text-white h-[34.8px] flex items-center disabled:bg-gray-300 disabled:cursor-not-allowed"
+                  class="text-sm rounded px-2 py-1 bg-gray-500 text-white flex items-center disabled:bg-gray-300 disabled:cursor-not-allowed"
                 >
                   <span>Prev</span>
                 </button>
                 <span class="flex-grow text-center">{{ store.page }}</span>
                 <button
                   :disabled="
-                    workerResponse?.pages === 0 ||
-                    store.page === (workerResponse?.pages ?? 1)
+                    searchWorkerResponse?.pages === 0 ||
+                    store.page === (searchWorkerResponse?.pages ?? 1)
                   "
                   @click="store.page += 1"
-                  class="rounded p-2 bg-gray-500 text-white h-[34.8px] flex items-center disabled:bg-gray-300 disabled:cursor-not-allowed"
+                  class="text-sm rounded px-2 py-1 bg-gray-500 text-white flex items-center disabled:bg-gray-300 disabled:cursor-not-allowed"
                 >
                   <span>Next</span>
                 </button>
               </div>
             </div>
+
+            <div v-if="isSupported" class="self-end">
+              <button
+                @click="copyToClip()"
+                class="rounded px-2 py-1 bg-gray-500 text-sm text-white self-center"
+              >
+                <span v-if="copiedFull"> Copied ! </span>
+                <span v-else> Copy search link </span>
+              </button>
+            </div>
           </div>
 
           <div class="text-sm">
             Showing {{ store.limit }} of
-            {{ workerResponse?.total ?? 'none' }} total
+            {{ searchWorkerResponse?.total ?? 'none' }} total
             {{ store.searchBy === 'route_name' ? 'Bus routes' : 'Bus stops' }}
           </div>
         </template>
 
-        <div v-if="isSupported">
-          <button
-            @click="copyToClip()"
-            class="rounded px-2 py-1 bg-gray-500 text-sm text-white self-center"
-          >
-            <span v-if="copiedFull"> Copied ! </span>
-            <span v-else> Copy search link </span>
-          </button>
-        </div>
+        <template v-else>
+          <div class="flex flex-col gap-1">
+            <label for="source-stop">Source Stop</label>
+
+            <div class="flex gap-2 items-center">
+              <input
+                id="source-stop"
+                class="w-full rounded px-2 py-1"
+                type="text"
+                v-model="store.sourceStop"
+                placeholder="K R Puram Railway Station"
+                autocomplete="off"
+                @focus="handleFieldFocus('source')"
+              />
+              <button
+                class="rounded-full bg-gray-500 h-[29px] w-[29px] text-white flex-shrink-0"
+                @click="store.sourceStop = ''"
+              >
+                x
+              </button>
+            </div>
+          </div>
+          <div class="flex flex-col gap-1">
+            <label for="destination-stop">Destination Stop</label>
+
+            <div class="flex gap-2 items-center">
+              <input
+                id="destination-stop"
+                class="w-full rounded px-2 py-1"
+                type="text"
+                v-model="store.destinationStop"
+                placeholder="Garudacharpalya"
+                autocomplete="off"
+                @focus="handleFieldFocus('destination')"
+              />
+              <button
+                class="rounded-full bg-gray-500 h-[29px] w-[29px] text-white flex-shrink-0"
+                @click="store.destinationStop = ''"
+              >
+                x
+              </button>
+            </div>
+          </div>
+        </template>
       </div>
 
       <div class="flex flex-col gap-2 p-2">
-        <template v-if="view === 'route_name'">
+        <template v-if="store.searchBy === 'route_name'">
           <div
             class="flex justify-between items-center gap-2 bg-gray-100 rounded-lg px-2 py-3"
-            v-for="bus in workerResponse?.results ?? []"
+            v-for="bus in searchWorkerResponse?.results ?? []"
             :key="String(bus.id)"
           >
             <div class="text-xl">
@@ -335,7 +435,7 @@ const activeRouteStops = computed(
             </div>
           </div>
 
-          <div v-if="!Boolean(workerResponse?.results.length)">
+          <div v-if="!Boolean(searchWorkerResponse?.results.length)">
             <ul class="list-disc text-sm">
               <li>
                 <span class="font-semibold">Search by stops</span> doesn't work
@@ -350,6 +450,17 @@ const activeRouteStops = computed(
                 you the source link, it's FOSS
               </li>
             </ul>
+          </div>
+        </template>
+
+        <template v-else>
+          <div
+            v-for="stop in stopsWorkerResponse"
+            :key="stop"
+            class="bg-gray-100 rounded-lg px-2 py-3 cursor-pointer text-xl"
+            @click="handleStopFieldSelection(stop)"
+          >
+            {{ stop }}
           </div>
         </template>
       </div>

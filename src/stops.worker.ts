@@ -5,10 +5,17 @@ export interface IStopsWorkerResponse {
   results: string[];
 }
 
+interface ILastResult {
+  query: string;
+  results: string[];
+}
+
 export class StopsWorker {
   fuse!: Fuse<string>;
   dataStops: string[] = [];
   dataStopRoutes: Record<string, string[]> = {};
+
+  lastResult: ILastResult | undefined;
 
   log(...args: any[]) {
     console.log('[stops worker]: ', ...args);
@@ -55,12 +62,23 @@ export class StopsWorker {
 
     this.fuse = new Fuse<string>(this.dataStops, {
       shouldSort: true,
-      distance: 50,
       includeMatches: false,
       includeScore: false,
     });
 
     this.log('Fuse init done');
+  }
+
+  async initStopsDb() {
+    if (!this.dataStops.length) {
+      await this.fetchStops();
+    } else this.fetchStops();
+  }
+
+  async initStopRoutesDb() {
+    if (!this.dataStopRoutes.length) {
+      await this.fetchStopRoutes();
+    } else this.fetchStopRoutes();
   }
 
   async init() {
@@ -69,18 +87,7 @@ export class StopsWorker {
     this.dataStops = (await get('__bus_find_stops__')) || [];
     this.dataStopRoutes = (await get('__bus_find_stop-routes__')) || {};
 
-    await Promise.all([
-      (async () => {
-        if (!this.dataStops.length) {
-          await this.fetchStops();
-        } else this.fetchStops();
-      })(),
-      (async () => {
-        if (!this.dataStopRoutes.length) {
-          await this.fetchStopRoutes();
-        } else this.fetchStopRoutes();
-      })(),
-    ]);
+    await Promise.all([this.initStopsDb(), this.initStopRoutesDb()]);
 
     this.initFuse();
 
@@ -88,6 +95,17 @@ export class StopsWorker {
   }
 
   search(value: string) {
-    return this.fuse.search(value);
+    const start = Date.now();
+
+    this.log('searching query ', value);
+
+    const results =
+      this.lastResult?.query === value
+        ? this.lastResult.results
+        : this.fuse.search(value, { limit: 10 }).map((i) => i?.item);
+
+    this.log('search done in ', Date.now() - start, ' ms');
+
+    return results;
   }
 }

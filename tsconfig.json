@@ -12,7 +12,8 @@
     "lib": ["ESNext", "DOM", "WebWorker.ImportScripts"],
     "skipLibCheck": true,
     "noEmit": true,
-    "types": ["vite-plugin-pwa/client"]
+    "types": ["vite-plugin-pwa/client"],
+    "noUnusedLocals": true
   },
   "include": ["src/**/*.ts", "src/**/*.d.ts", "src/**/*.tsx", "src/**/*.vue"],
   "references": [{ "path": "./tsconfig.node.json" }]

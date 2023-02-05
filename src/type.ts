@@ -3,4 +3,6 @@ export interface IStore {
   limit: number;
   page: number;
   searchBy: 'route_name' | 'route_stops';
+  sourceStop: string;
+  destinationStop: string;
 }

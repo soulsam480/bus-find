@@ -1,3 +1,9 @@
+<script lang="ts">
+export default {
+  inheritAttrs: false,
+};
+</script>
+
 <script setup lang="ts">
 import { onClickOutside } from '@vueuse/core';
 import { ref } from 'vue';
